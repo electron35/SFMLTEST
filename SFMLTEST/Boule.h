@@ -24,5 +24,6 @@ public:
 
 	Boule(int id, int x, int y, int radius, Color color, float Vx, float Vy, float Ax, float Ay);
 	void move();
+	bool isColliding(Boule b);
 };
 

@@ -13,11 +13,11 @@
 using namespace std;
 using namespace sf;
 
-void readPoint(Point pt) {
+void readPoint(Point pt) {//Lit les informations d'un points, été utile avant
     std::cout << "id:" << pt.id() << " | x=" << pt.X() << " y=" << pt.Y() << std::endl;
 }
 
-std::vector<Point> massCreatePoint(std::string relPath) {
+std::vector<Point> massCreatePoint(std::string relPath) {//Creer plein de point selon un fichier
     std::ifstream flux(relPath);
     std::vector<Point> points;
     if (flux)
@@ -41,7 +41,7 @@ std::vector<Point> massCreatePoint(std::string relPath) {
     return points;
 }
 
-std::vector<Point> massMovePoint(std::string relPath, std::vector<Point> points) {
+std::vector<Point> massMovePoint(std::string relPath, std::vector<Point> points) {//Bouge tout les points selon un fichier
     std::ifstream flux(relPath);
     if (flux)
     {
@@ -75,98 +75,147 @@ void massPrintPoint(vector<Point> points) {
     }
 }
 
+float randInRange(float min, float max) {
+    float res = 0;
+    if (min < max) {
+       res = rand() / ((RAND_MAX + 1u) / max) + min;
+    }
+    else {
+        cerr << "Le minimum ne peut être supérieur au maximum" << endl;
+    }
+    return res;
+}
+
 int main()
 {
+    srand(std::time(nullptr));//initialisation du random
     Clock clock;
+    Clock minuteur;
     Font font;
-    font.loadFromFile("D:\\GetDossier\\ARIAL.TTF");
-
-    Text text;
-
-    text.setFont(font);
-
-    text.setString("Hello world");
-    text.setCharacterSize(24);
-    text.setFillColor(Color(255,0,255));
-    
-    std::srand(std::time(nullptr));
-    
-    Point point(0, 5, 10);
+    if (!font.loadFromFile("ARIAL.TTF"))
+        cerr << "could not load font from file" << endl;
     int screenSizeX = 1200;
     int screenSizeY = 800;
 
-    vector<Point> points = massCreatePoint("Point/initial.txt");
+    
+    vector<RectangleShape> shapes; //Vecteur des formes de fonds
 
-    vector<RectangleShape> shapes;
-    //massPrintPoint(points);
-
-    
-    
-    RenderWindow window(sf::VideoMode(screenSizeX, screenSizeY), "SFML works!");
-    float ballSize = 5.f;
-    RectangleShape square(Vector2f(800, 800));
-    
-    RectangleShape timerBack(Vector2f(100, 50));
-    
-
+    RectangleShape square(Vector2f(800, 800)); //Carée ou se déplace les boules
     square.setFillColor(Color(0, 0, 0));
+    RectangleShape timerBack(Vector2f(100, 50)); //Fond de la clock
     timerBack.setFillColor(Color(255, 255, 255));
 
-    vector<CircleShape> circles;
+    RenderWindow window(sf::VideoMode(screenSizeX, screenSizeY), "SFML works!");
 
+    //vector<Point> points = massCreatePoint("Point/initial.txt"); // vecteur de point pour générer les boules selon un fichier
+    //vector<CircleShape> circles; 
+
+    //On creez un vecteur de boule et on y stock 100 boules de position et de couleur aléatoire
     vector<Boule> boules;
-
-
-    for (int i = 0; i < points.size(); i++)
+    float ballSize = 5.f;
+    for (int i = 0; i < 100; i++)
     {
-        int randomR = std::rand() / ((RAND_MAX + 1u) / 255);
-        int randomG = std::rand() / ((RAND_MAX + 1u) / 255);
-        int randomB = std::rand() / ((RAND_MAX + 1u) / 255);
 
-        Color color(randomR, randomG, randomB);
-        /*CircleShape shape(ballSize);
-        circles.push_back(shape);
-        circles[i].setFillColor(Color(randomR, randomG, randomB));
-        circles[i].setPosition(points[i].X() - ballSize, points[i].Y() - ballSize);*/
+        Color color(randInRange(0, 255), randInRange(0, 255), randInRange(0, 255));
+        CircleShape shape(ballSize);
+        //circles.push_back(shape);
+        //circles[i].setFillColor(Color(randomR, randomG, randomB));
+        //circles[i].setPosition(points[i].X() - ballSize, points[i].Y() - ballSize);
 
-        Boule ball(i, (rand() / ((RAND_MAX + 1u) / 780)), (rand() / ((RAND_MAX + 1u) / 780)), ballSize, color, (rand() / ((RAND_MAX + 1u) / 10) - 5), (rand() / ((RAND_MAX + 1u) / 10) - 5), 0, 0);
+        Boule ball(i, randInRange(10,780), randInRange(10,780), ballSize, color, randInRange(-5,10), randInRange(-5,10), 0, 0);
         boules.push_back(ball);
     }
 
-    sf::CircleShape shape(ballSize);
-    shape.setFillColor(Color(255, 0, 255));
-    shape.setPosition(point.X() - ballSize, point.Y() - ballSize);
-
     square.setPosition(Vector2f(0,0));
-    
-    timerBack.setPosition(950, 50);
+    timerBack.setPosition(Vector2f(950, 50));
 
     shapes.push_back(square);
     shapes.push_back(timerBack);
 
+    Text text("Hello world", font);//servira pour afficher la clock
+    text.setCharacterSize(24);
+    text.setFillColor(Color(255, 0, 255));
+    text.setPosition(950, 50);
+
+    sf::Text tdisp("",font); // Servira à écrire du texte manuellement
+    tdisp.setPosition(Vector2f(820, 100));
+    tdisp.setCharacterSize(24);
+    tdisp.setFillColor(Color(255, 0, 0));
+
+    
+    
+    clock.restart();
+
+    //initalisation des variables pour event
+    sf::Event event;
+    bool isFocusLost = false;
+    std::string texte;
+
+    Time currentMinuteur;
+    Time lastTime;
+    
+
     //
     //DRAW
     //
-    clock.restart();
     while (window.isOpen())
     {
-        sf::Event event;
         while (window.pollEvent(event))
         {
+            switch (event.type)
+            {
+            case (Event::LostFocus):
+                lastTime += minuteur.getElapsedTime();
+                isFocusLost = true;
+                break;
+            case(Event::GainedFocus):
+                minuteur.restart();
+                
+                isFocusLost = false;
+                break;
+            case(Event::Closed):
+                window.close();
+                break;
+            case(Event::TextEntered):
+                if (event.text.unicode != '\b' && texte.size() <= 28) {
+                    texte += event.text.unicode;
+                    tdisp.setString(texte);
+                }
+                
+                cout << texte << endl;
+                break;
+            case(Event::KeyPressed):
+                if (event.key.code == Keyboard::Backspace) {
+                    if (texte.size() > 0) {
+                        texte.pop_back();
+                        tdisp.setString(texte);
+                        cout << texte << endl;
+                    }
+                }
+                    
+                break;
+            default:
+                break;
+            }
             if (event.type == sf::Event::Closed)
                 window.close();
         }
 
-        window.clear(Color(52,52,52));
-        window.draw(text);
+        window.clear(Color(52, 52, 52));
+        
         for (int i = 0; i < shapes.size(); i++)
         {
             window.draw(shapes[i]);
         }
-        /*for (int i = 0; i < circles.size(); i++)
-        {
-            window.draw(circles[i]);
-        }*/
+        
+        if (!isFocusLost)
+            currentMinuteur = minuteur.getElapsedTime() + lastTime;// - (lastTime - minuteur.getElapsedTime());
+        //lastTime.Zero;
+        
+        text.setString(to_string(currentMinuteur.asMilliseconds()));
+        window.draw(text);
+        window.draw(tdisp);
+                   
         for (int i = 0; i < boules.size(); i++)
         {
             window.draw(boules[i].projection);
@@ -174,15 +223,43 @@ int main()
         Time elapsed1 = clock.getElapsedTime();
         Time max = sf::milliseconds(10);
         Time microsec = microseconds(elapsed1.asMicroseconds());
-        if (microsec >= max) {
-            for (int i = 0; i < boules.size(); i++)
-            {
-                boules[i].move();
-            }
-            clock.restart();
-        }
         
+            
+        
+        if (!isFocusLost) {
+            if (microsec >= max) {
+                for (int i = 0; i < boules.size(); i++)
+                {
+                    boules[i].move();
+                    for (int j = 0; j < boules.size(); j++) {
+                        if (boules[i].isColliding(boules[j]) && i!=j) {
+
+                            boules[i].projection.setFillColor(Color(randInRange(0,255), randInRange(0, 255), randInRange(0, 255)));
+                            boules[j].projection.setFillColor(Color(randInRange(0,255), randInRange(0, 255), randInRange(0, 255)));
+
+
+                            boules[i]._Vx = -boules[i]._Vx;
+                            boules[i]._Vy = -boules[i]._Vy;
+                            boules[j]._Vx = -boules[j]._Vx;
+                            boules[j]._Vy = -boules[j]._Vy;
+
+                            /*if (boules[i]._XP < 1 && boules[i]._XP >-1  && boules[i]._YP < 1 && boules[i]._YP > -1) {
+                                boules[i]._Vx = randInRange(-5, 10);
+                                boules[i]._Vy = randInRange(-5, 10);
+                            }
+                            if (boules[j]._XP < 1 && boules[j]._XP >-1 && boules[j]._YP < 1 && boules[j]._YP > -1) {
+                                boules[j]._Vx = randInRange(-5, 10);
+                                boules[j]._Vy = randInRange(-5, 10);
+                            }*/
+                        }
+                    }
+                }
+            }
+        }
+
         window.display();
+        
+        
     }
     return 0;
 }
